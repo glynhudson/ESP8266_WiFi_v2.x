@@ -22,40 +22,13 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
+ 
+#ifndef _EMONESP_AUTOAUTH_H
+#define _EMONESP_AUTOAUTH_H
 
-#ifndef _EMONESP_WIFI_H
-#define _EMONESP_WIFI_H
+void auth_request();
+void auth_setup();
+void auth_loop();
 
-#include <Arduino.h>
+#endif
 
-// Wifi mode
-// 0 - STA (Client)
-// 1 - AP with STA retry
-// 2 - AP only
-// 3 - AP + STA
-
-#define WIFI_MODE_STA           0
-#define WIFI_MODE_AP_STA_RETRY  1
-#define WIFI_MODE_AP_ONLY       2
-#define WIFI_MODE_AP_AND_STA    3
-
-// The current WiFi mode
-extern int wifi_mode;
-
-// Last discovered WiFi access points
-extern String st;
-extern String rssi;
-
-// Network state
-extern String ipaddress;
-
-// mDNS hostname
-extern const char *esp_hostname;
-
-extern void wifi_setup();
-extern void wifi_loop();
-extern void wifi_restart();
-extern void wifi_scan();
-extern void wifi_disconnect();
-
-#endif // _EMONESP_WIFI_H

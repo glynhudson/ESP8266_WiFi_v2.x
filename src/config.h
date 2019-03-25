@@ -1,15 +1,47 @@
+/*
+ * -------------------------------------------------------------------
+ * EmonESP Serial to Emoncms gateway
+ * -------------------------------------------------------------------
+ * Adaptation of Chris Howells OpenEVSE ESP Wifi
+ * by Trystan Lea, Glyn Hudson, OpenEnergyMonitor
+ * All adaptation GNU General Public License as below.
+ *
+ * -------------------------------------------------------------------
+ *
+ * This file is part of OpenEnergyMonitor.org project.
+ * EmonESP is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3, or (at your option)
+ * any later version.
+ * EmonESP is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with EmonESP; see the file COPYING.  If not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
 #ifndef _EMONESP_CONFIG_H
 #define _EMONESP_CONFIG_H
 
 #include <Arduino.h>
 
 // -------------------------------------------------------------------
-// Load and save the OpenEVSE WiFi config.
+// Load and save the EmonESP config.
 //
 // This initial implementation saves the config to the EEPROM area of flash
 // -------------------------------------------------------------------
 
+extern int LEDpin;
+
 // Global config varables
+extern String node_type;
+extern int node_id;
+extern String node_name;
+extern String node_describe;
+extern String node_description;
 
 // Wifi Network Strings
 extern String esid;
@@ -21,39 +53,30 @@ extern String www_password;
 
 // EMONCMS SERVER strings
 extern String emoncms_server;
+extern String emoncms_path;
 extern String emoncms_node;
 extern String emoncms_apikey;
 extern String emoncms_fingerprint;
 
 // MQTT Settings
 extern String mqtt_server;
+extern int mqtt_port;
 extern String mqtt_topic;
 extern String mqtt_user;
 extern String mqtt_pass;
-extern String mqtt_solar;
-extern String mqtt_grid_ie;
+extern String mqtt_feed_prefix;
 
-// 24-bits of Flags
-extern uint32_t flags;
+// Timer Settings 
+extern int timer_start1;
+extern int timer_stop1;
+extern int timer_start2;
+extern int timer_stop2;
 
-#define CONFIG_SERVICE_EMONCMS  (1 << 0)
-#define CONFIG_SERVICE_MQTT     (1 << 1)
-#define CONFIG_SERVICE_OHM      (1 << 2)
+extern int voltage_output;
 
-inline bool config_emoncms_enabled() {
-  return CONFIG_SERVICE_EMONCMS == (flags & CONFIG_SERVICE_EMONCMS);
-}
-
-inline bool config_mqtt_enabled() {
-  return CONFIG_SERVICE_MQTT == (flags & CONFIG_SERVICE_MQTT);
-}
-
-inline bool config_ohm_enabled() {
-  return CONFIG_SERVICE_OHM == (flags & CONFIG_SERVICE_OHM);
-}
-
-// Ohm Connect Settings
-extern String ohm;
+extern String ctrl_mode;
+extern bool ctrl_update;
+extern bool ctrl_state;
 
 // -------------------------------------------------------------------
 // Load saved settings
@@ -63,12 +86,13 @@ extern void config_load_settings();
 // -------------------------------------------------------------------
 // Save the EmonCMS server details
 // -------------------------------------------------------------------
-extern void config_save_emoncms(bool enable, String server, String node, String apikey, String fingerprint);
+extern void config_save_emoncms(String server, String path, String node, String apikey, String fingerprint);
 
 // -------------------------------------------------------------------
 // Save the MQTT broker details
 // -------------------------------------------------------------------
-extern void config_save_mqtt(bool enable, String server, String topic, String user, String pass, String solar, String grid_ie);
+extern void config_save_mqtt(String server, int port, String topic, String prefix, String user, String pass);
+extern void config_save_mqtt_server(String server);
 
 // -------------------------------------------------------------------
 // Save the admin/web interface details
@@ -76,19 +100,15 @@ extern void config_save_mqtt(bool enable, String server, String topic, String us
 extern void config_save_admin(String user, String pass);
 
 // -------------------------------------------------------------------
+// Save the admin/web interface details
+// -------------------------------------------------------------------
+extern void config_save_timer(int start1, int stop1, int start2, int stop2, int voltage_output);
+extern void config_save_voltage_output(int qvoltage_output, int save_to_eeprom);
+// -------------------------------------------------------------------
 // Save the Wifi details
 // -------------------------------------------------------------------
 extern void config_save_wifi(String qsid, String qpass);
 
-// -------------------------------------------------------------------
-// Save the Ohm settings
-// -------------------------------------------------------------------
-extern void config_save_ohm(bool enable, String qohm);
-
-// -------------------------------------------------------------------
-// Save the flags
-// -------------------------------------------------------------------
-extern void config_save_flags(uint32_t flags);
 
 // -------------------------------------------------------------------
 // Reset the config back to defaults
