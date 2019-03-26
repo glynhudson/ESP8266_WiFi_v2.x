@@ -25,10 +25,11 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <FS.h>                       // SPIFFS file-system: store web server html, CSS etc.
+//#include <FS.h>                       // SPIFFS file-system: store web server html, CSS etc.
 
 #include "emonesp.h"
 #include "web_server.h"
+#include "web_server_static.h"
 #include "config.h"
 #include "wifi.h"
 #include "mqtt.h"
@@ -41,6 +42,9 @@
 
 AsyncWebServer server(80);          //Create class for Web server
 
+AsyncWebSocket ws("/ws");
+StaticFileWebHandler staticFile;
+
 bool enableCors = true;
 
 // Event timeouts
@@ -49,10 +53,66 @@ unsigned long mqttRestartTime = 0;
 unsigned long systemRestartTime = 0;
 unsigned long systemRebootTime = 0;
 
+// Content Types
+const char _CONTENT_TYPE_HTML[] PROGMEM = "text/html";
+const char _CONTENT_TYPE_TEXT[] PROGMEM = "text/text";
+const char _CONTENT_TYPE_CSS[] PROGMEM = "text/css";
+const char _CONTENT_TYPE_JSON[] PROGMEM = "application/json";
+const char _CONTENT_TYPE_JS[] PROGMEM = "application/javascript";
+const char _CONTENT_TYPE_JPEG[] PROGMEM = "image/jpeg";
+const char _CONTENT_TYPE_PNG[] PROGMEM = "image/png";
+
+
 // Get running firmware version from build tag environment variable
 #define TEXTIFY(A) #A
 #define ESCAPEQUOTE(A) TEXTIFY(A)
 String currentfirmware = ESCAPEQUOTE(BUILD_TAG);
+
+
+void dumpRequest(AsyncWebServerRequest *request) {
+  if(request->method() == HTTP_GET) {
+    DBUGF("GET");
+  } else if(request->method() == HTTP_POST) {
+    DBUGF("POST");
+  } else if(request->method() == HTTP_DELETE) {
+    DBUGF("DELETE");
+  } else if(request->method() == HTTP_PUT) {
+    DBUGF("PUT");
+  } else if(request->method() == HTTP_PATCH) {
+    DBUGF("PATCH");
+  } else if(request->method() == HTTP_HEAD) {
+    DBUGF("HEAD");
+  } else if(request->method() == HTTP_OPTIONS) {
+    DBUGF("OPTIONS");
+  } else {
+    DBUGF("UNKNOWN");
+  }
+  DBUGF(" http://%s%s", request->host().c_str(), request->url().c_str());
+
+  if(request->contentLength()){
+    DBUGF("_CONTENT_TYPE: %s", request->contentType().c_str());
+    DBUGF("_CONTENT_LENGTH: %u", request->contentLength());
+  }
+
+  int headers = request->headers();
+  int i;
+  for(i=0; i<headers; i++) {
+    AsyncWebHeader* h = request->getHeader(i);
+    DBUGF("_HEADER[%s]: %s", h->name().c_str(), h->value().c_str());
+  }
+
+  int params = request->params();
+  for(i = 0; i < params; i++) {
+    AsyncWebParameter* p = request->getParam(i);
+    if(p->isFile()){
+      DBUGF("_FILE[%s]: %s, size: %u", p->name().c_str(), p->value().c_str(), p->size());
+    } else if(p->isPost()){
+      DBUGF("_POST[%s]: %s", p->name().c_str(), p->value().c_str());
+    } else {
+      DBUGF("_GET[%s]: %s", p->name().c_str(), p->value().c_str());
+    }
+  }
+}
 
 // -------------------------------------------------------------------
 // Helper function to perform the standard operations on a request
@@ -72,10 +132,43 @@ bool requestPreProcess(AsyncWebServerRequest *request, AsyncResponseStream *&res
   return true;
 }
 
+
+// -------------------------------------------------------------------
+// Helper function to perform the standard operations on a request
+// -------------------------------------------------------------------
+/*
+bool requestPreProcess(AsyncWebServerRequest *request, AsyncResponseStream *&response, const __FlashStringHelper *contentType = CONTENT_TYPE_JSON)
+{
+  dumpRequest(request);
+
+  if(wifi_mode_is_sta() && www_username!="" &&
+     false == request->authenticate(www_username.c_str(), www_password.c_str())) {
+    request->requestAuthentication(esp_hostname);
+    return false;
+  }
+
+  response = request->beginResponseStream(String(contentType));
+  if(enableCors) {
+    response->addHeader(F("Access-Control-Allow-Origin"), F("*"));
+  }
+
+  response->addHeader(F("Cache-Control"), F("no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0"));
+
+  return true;
+}
+*/
+// -------------------------------------------------------------------
+// Helper function to detect positive string
+// -------------------------------------------------------------------
+bool isPositive(const String &str) {
+  return str == "1" || str == "true";
+}
+
 // -------------------------------------------------------------------
 // Load Home page
 // url: /
 // -------------------------------------------------------------------
+/*
 void
 handleHome(AsyncWebServerRequest *request) {
   if (www_username != ""
@@ -92,7 +185,7 @@ handleHome(AsyncWebServerRequest *request) {
                   "/home.html not found, have you flashed the SPIFFS?");
   }
 }
-
+*/
 // -------------------------------------------------------------------
 // Wifi scan /scan not currently used
 // url: /scan
@@ -286,7 +379,7 @@ handleSaveTimer(AsyncWebServerRequest *request) {
   int qtimer_stop2 = tmp.toInt();
   tmp = request->arg("voltage_output");
   int qvoltage_output = tmp.toInt();
-  
+
   config_save_timer(qtimer_start1, qtimer_stop1, qtimer_start2, qtimer_stop2, qvoltage_output);
   if (mqtt_server!=0) mqtt_publish("out/timer",String(qtimer_start1)+" "+String(qtimer_stop1)+" "+String(qtimer_start2)+" "+String(qtimer_stop2)+" "+String(qvoltage_output));
 
@@ -309,10 +402,10 @@ handleSetVout(AsyncWebServerRequest *request) {
 
   int save = 0;
   if (qsave==1) save = 1;
-  
+
   config_save_voltage_output(vout,save);
   if (mqtt_server!=0) mqtt_publish("out/vout",String(vout));
-  
+
   response->setCode(200);
   if (save) response->print("saved");
   else response->print("ok");
@@ -334,10 +427,10 @@ handleSetFlowT(AsyncWebServerRequest *request) {
 
   int save = 0;
   if (qsave==1) save = 1;
-  
+
   config_save_voltage_output(vout,save);
   if (mqtt_server!=0) mqtt_publish("out/vout",String(vout));
-  
+
   response->setCode(200);
   if (save) response->print("saved");
   else response->print("ok");
@@ -645,7 +738,7 @@ handleUpdateUpload(AsyncWebServerRequest *request, String filename, size_t index
 
 void handleDescribe(AsyncWebServerRequest *request) {
   AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "smartplug");
-  response->addHeader("Access-Control-Allow-Origin", "*");  
+  response->addHeader("Access-Control-Allow-Origin", "*");
   request->send(response);
 }
 
@@ -671,7 +764,32 @@ void handleCtrlMode(AsyncWebServerRequest *request) {
   request->send(response);
 }
 
+void handleNotFound(AsyncWebServerRequest *request)
+{
+  DBUG("NOT_FOUND: ");
+  dumpRequest(request);
 
+  if(wifi_mode == WIFI_MODE_AP_ONLY) {
+    // Redirect to the home page in AP mode (for the captive portal)
+    AsyncResponseStream *response = request->beginResponseStream(String(CONTENT_TYPE_HTML));
+
+    String url = F("http://");
+    url += ipaddress;
+
+    String s = F("<html><body><a href=\"");
+    s += url;
+    s += F("\">emonESP</a></body></html>");
+
+    response->setCode(301);
+    response->addHeader(F("Location"), url);
+    response->print(s);
+    request->send(response);
+  } else {
+    request->send(404);
+  }
+}
+
+/*
 void handleNotFound(AsyncWebServerRequest *request)
 {
   DBUG("NOT_FOUND: ");
@@ -720,7 +838,127 @@ void handleNotFound(AsyncWebServerRequest *request)
 
   request->send(404);
 }
+*/
 
+void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  if(type == WS_EVT_CONNECT) {
+    DBUGF("ws[%s][%u] connect", server->url(), client->id());
+    client->ping();
+  } else if(type == WS_EVT_DISCONNECT) {
+    DBUGF("ws[%s][%u] disconnect: %u", server->url(), client->id());
+  } else if(type == WS_EVT_ERROR) {
+    DBUGF("ws[%s][%u] error(%u): %s", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
+  } else if(type == WS_EVT_PONG) {
+    DBUGF("ws[%s][%u] pong[%u]: %s", server->url(), client->id(), len, (len)?(char*)data:"");
+  } else if(type == WS_EVT_DATA) {
+    AwsFrameInfo * info = (AwsFrameInfo*)arg;
+    String msg = "";
+    if(info->final && info->index == 0 && info->len == len)
+    {
+      //the whole message is in a single frame and we got all of it's data
+      DBUGF("ws[%s][%u] %s-message[%u]: ", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", len);
+    } else {
+      // TODO: handle messages that are comprised of multiple frames or the frame is split into multiple packets
+    }
+  }
+}
+
+
+void
+web_server_setup() {
+//  SPIFFS.begin(); // mount the fs
+
+  // Setup the static files
+//  server.serveStatic("/", SPIFFS, "/")
+//    .setDefaultFile("index.html");
+
+  // Add the Web Socket server
+  ws.onEvent(onWsEvent);
+  server.addHandler(&ws);
+  server.addHandler(&staticFile);
+/*
+  // Start server & server root html /
+  //server.on("/", handleHome);
+
+  // Handle status updates
+  server.on("/status", handleStatus);
+  server.on("/config", handleConfig);
+#ifdef ENABLE_LEGACY_API
+  server.on("/rapiupdate", handleUpdate);
+#endif
+
+  // Handle HTTP web interface button presses
+  server.on("/savenetwork", handleSaveNetwork);
+  server.on("/saveemoncms", handleSaveEmoncms);
+  server.on("/savemqtt", handleSaveMqtt);
+  server.on("/saveadmin", handleSaveAdmin);
+  //server.on("/saveohmkey", handleSaveOhmkey);
+  server.on("/reset", handleRst);
+  server.on("/restart", handleRestart);
+  //server.on("/rapi", handleRapi);
+  server.on("/r", handleRapi);
+  server.on("/scan", handleScan);
+  server.on("/apoff", handleAPOff);
+  //server.on("/divertmode", handleDivertMode);
+  server.on("/emoncms/describe", handleDescribe);
+
+  // Simple Firmware Update Form
+  server.on("/update", HTTP_GET, handleUpdateGet);
+  server.on("/update", HTTP_POST, handleUpdatePost, handleUpdateUpload);
+
+  server.onNotFound(handleNotFound);
+  server.begin();
+*/
+  // Start server & server root html /
+  //server.on("/",handleHome);
+
+  // Handle HTTP web interface button presses
+  //server.on("/generate_204", handleHome);  //Android captive portal. Maybe not needed. Might be handled by notFound
+  //server.on("/fwlink", handleHome);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound
+  server.on("/status", handleStatus);
+
+  server.on("/config", handleConfig);
+
+  server.on("/savenetwork", handleSaveNetwork);
+  server.on("/saveemoncms", handleSaveEmoncms);
+  server.on("/savemqtt", handleSaveMqtt);
+  server.on("/saveadmin", handleSaveAdmin);
+  server.on("/savetimer", handleSaveTimer);
+
+  server.on("/reset", handleRst);
+  server.on("/restart", handleRestart);
+
+  server.on("/scan", handleScan);
+  server.on("/apoff", handleAPOff);
+  server.on("/input", handleInput);
+  server.on("/lastvalues", handleLastValues);
+
+  // Simple Firmware Update Form
+  server.on("/upload", HTTP_GET, handleUpdateGet);
+  server.on("/upload", HTTP_POST, handleUpdatePost, handleUpdateUpload);
+
+  server.on("/firmware", handleUpdateCheck);
+  server.on("/update", handleUpdate);
+  server.on("/emoncms/describe", handleDescribe);
+  server.on("/time", handleTime);
+  server.on("/ctrlmode", handleCtrlMode);
+  server.on("/vout", handleSetVout);
+  server.on("/flow", handleSetFlowT);
+
+
+
+  server.onNotFound(handleNotFound);
+  server.begin();
+
+  DEBUG.println("Server started");
+}
+
+
+void web_server_event(String &event)
+{
+  ws.textAll(event);
+}
+/*
 void
 web_server_setup()
 {
@@ -772,7 +1010,7 @@ web_server_setup()
   server.onNotFound(handleNotFound);
   server.begin();
 }
-
+*/
 void
 web_server_loop() {
   // Do we need to restart the WiFi?

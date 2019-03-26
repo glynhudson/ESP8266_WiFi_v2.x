@@ -105,7 +105,7 @@ startClient() {
   DEBUG.print(esid.c_str());
   DEBUG.print(" PSK:");
   DEBUG.println(epass.c_str());
-  
+
   WiFi.hostname(node_name.c_str());
 
   //WiFi.mode(WIFI_STA);
@@ -146,12 +146,12 @@ startClient() {
     ipaddress = tmpStr;
 
     for (int f=0; f<10; f++) {
-        digitalWrite(LEDpin,HIGH); 
-        delay(80); 
-        digitalWrite(LEDpin,LOW); 
+        digitalWrite(LEDpin,HIGH);
+        delay(80);
+        digitalWrite(LEDpin,LOW);
         delay(20);
     }
-    digitalWrite(LEDpin,HIGH); 
+    digitalWrite(LEDpin,HIGH);
   } else {
     DEBUG.print("startClient wifi_mode is not STA??");
   }
@@ -183,6 +183,8 @@ void wifi_setup() {
 }
 
 void wifi_loop() {
+
+bool isApOnly = wifi_mode_is_ap_only();
 
   // Factory reset on GPIO0.
   /*
