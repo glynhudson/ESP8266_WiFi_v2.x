@@ -34,6 +34,7 @@ int factoryreset_holdtime = (10 * 1000); //10 seconds hold down GPIO0 for factor
 
 DNSServer dnsServer;                  // Create class DNS server, captive portal re-direct
 const byte DNS_PORT = 53;
+const char *esp_hostname = node_name.c_str();
 
 // Access Point SSID, password & IP address. SSID will be softAP_ssid + chipID to make SSID unique
 // const char *softAP_ssid = "emonESP";
@@ -45,7 +46,6 @@ IPAddress netMsk(255, 255, 255, 0);
 String connected_network = "";
 String status_string = "";
 String ipaddress = "";
-
 unsigned long Timer;
 String st, rssi;
 
@@ -106,7 +106,7 @@ startClient() {
   DEBUG.print(" PSK:");
   DEBUG.println(epass.c_str());
 
-  WiFi.hostname(node_name.c_str());
+  WiFi.hostname(esp_hostname);
 
   //WiFi.mode(WIFI_STA);
   digitalWrite(LEDpin,LOW);

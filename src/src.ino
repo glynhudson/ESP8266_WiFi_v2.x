@@ -100,9 +100,10 @@ void setup() {
   led_flash(50,50);
 
   // Start the OTA update systems
-  ota_setup();
+  #ifdef ENABLE_OTA
+  	ota_setup();
+  #endif
 
-  DEBUG.println("Server started");
 
   // Start auto auth
   auth_setup();
@@ -122,7 +123,9 @@ void led_flash(int ton, int toff) {
 // -------------------------------------------------------------------
 void loop()
 {
-  ota_loop();
+  #ifdef ENABLE_OTA
+    ota_loop();
+  #endif
   web_server_loop();
   wifi_loop();
   timeClient.update();

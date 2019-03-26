@@ -789,56 +789,6 @@ void handleNotFound(AsyncWebServerRequest *request)
   }
 }
 
-/*
-void handleNotFound(AsyncWebServerRequest *request)
-{
-  DBUG("NOT_FOUND: ");
-  if(request->method() == HTTP_GET) {
-    DBUGF("GET");
-  } else if(request->method() == HTTP_POST) {
-    DBUGF("POST");
-  } else if(request->method() == HTTP_DELETE) {
-    DBUGF("DELETE");
-  } else if(request->method() == HTTP_PUT) {
-    DBUGF("PUT");
-  } else if(request->method() == HTTP_PATCH) {
-    DBUGF("PATCH");
-  } else if(request->method() == HTTP_HEAD) {
-    DBUGF("HEAD");
-  } else if(request->method() == HTTP_OPTIONS) {
-    DBUGF("OPTIONS");
-  } else {
-    DBUGF("UNKNOWN");
-  }
-  DBUGF(" http://%s%s", request->host().c_str(), request->url().c_str());
-
-  if(request->contentLength()){
-    DBUGF("_CONTENT_TYPE: %s", request->contentType().c_str());
-    DBUGF("_CONTENT_LENGTH: %u", request->contentLength());
-  }
-
-  int headers = request->headers();
-  int i;
-  for(i=0; i<headers; i++) {
-    AsyncWebHeader* h = request->getHeader(i);
-    DBUGF("_HEADER[%s]: %s", h->name().c_str(), h->value().c_str());
-  }
-
-  int params = request->params();
-  for(i = 0; i < params; i++) {
-    AsyncWebParameter* p = request->getParam(i);
-    if(p->isFile()){
-      DBUGF("_FILE[%s]: %s, size: %u", p->name().c_str(), p->value().c_str(), p->size());
-    } else if(p->isPost()){
-      DBUGF("_POST[%s]: %s", p->name().c_str(), p->value().c_str());
-    } else {
-      DBUGF("_GET[%s]: %s", p->name().c_str(), p->value().c_str());
-    }
-  }
-
-  request->send(404);
-}
-*/
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   if(type == WS_EVT_CONNECT) {
@@ -866,59 +816,13 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient *client, AwsEventTy
 
 void
 web_server_setup() {
-//  SPIFFS.begin(); // mount the fs
 
-  // Setup the static files
-//  server.serveStatic("/", SPIFFS, "/")
-//    .setDefaultFile("index.html");
-
-  // Add the Web Socket server
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
   server.addHandler(&staticFile);
-/*
-  // Start server & server root html /
-  //server.on("/", handleHome);
 
-  // Handle status updates
   server.on("/status", handleStatus);
   server.on("/config", handleConfig);
-#ifdef ENABLE_LEGACY_API
-  server.on("/rapiupdate", handleUpdate);
-#endif
-
-  // Handle HTTP web interface button presses
-  server.on("/savenetwork", handleSaveNetwork);
-  server.on("/saveemoncms", handleSaveEmoncms);
-  server.on("/savemqtt", handleSaveMqtt);
-  server.on("/saveadmin", handleSaveAdmin);
-  //server.on("/saveohmkey", handleSaveOhmkey);
-  server.on("/reset", handleRst);
-  server.on("/restart", handleRestart);
-  //server.on("/rapi", handleRapi);
-  server.on("/r", handleRapi);
-  server.on("/scan", handleScan);
-  server.on("/apoff", handleAPOff);
-  //server.on("/divertmode", handleDivertMode);
-  server.on("/emoncms/describe", handleDescribe);
-
-  // Simple Firmware Update Form
-  server.on("/update", HTTP_GET, handleUpdateGet);
-  server.on("/update", HTTP_POST, handleUpdatePost, handleUpdateUpload);
-
-  server.onNotFound(handleNotFound);
-  server.begin();
-*/
-  // Start server & server root html /
-  //server.on("/",handleHome);
-
-  // Handle HTTP web interface button presses
-  //server.on("/generate_204", handleHome);  //Android captive portal. Maybe not needed. Might be handled by notFound
-  //server.on("/fwlink", handleHome);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound
-  server.on("/status", handleStatus);
-
-  server.on("/config", handleConfig);
-
   server.on("/savenetwork", handleSaveNetwork);
   server.on("/saveemoncms", handleSaveEmoncms);
   server.on("/savemqtt", handleSaveMqtt);
@@ -944,8 +848,6 @@ web_server_setup() {
   server.on("/ctrlmode", handleCtrlMode);
   server.on("/vout", handleSetVout);
   server.on("/flow", handleSetFlowT);
-
-
 
   server.onNotFound(handleNotFound);
   server.begin();
@@ -958,59 +860,7 @@ void web_server_event(String &event)
 {
   ws.textAll(event);
 }
-/*
-void
-web_server_setup()
-{
-  SPIFFS.begin(); // mount the fs
 
-  // Setup the static files
-  server.serveStatic("/", SPIFFS, "/")
-    .setDefaultFile("index.html")
-    .setAuthentication(www_username.c_str(), www_password.c_str());
-
-  // Start server & server root html /
-  server.on("/",handleHome);
-
-  // Handle HTTP web interface button presses
-  server.on("/generate_204", handleHome);  //Android captive portal. Maybe not needed. Might be handled by notFound
-  server.on("/fwlink", handleHome);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound
-  server.on("/status", handleStatus);
-
-  server.on("/config", handleConfig);
-
-  server.on("/savenetwork", handleSaveNetwork);
-  server.on("/saveemoncms", handleSaveEmoncms);
-  server.on("/savemqtt", handleSaveMqtt);
-  server.on("/saveadmin", handleSaveAdmin);
-  server.on("/savetimer", handleSaveTimer);
-
-  server.on("/reset", handleRst);
-  server.on("/restart", handleRestart);
-
-  server.on("/scan", handleScan);
-  server.on("/apoff", handleAPOff);
-  server.on("/input", handleInput);
-  server.on("/lastvalues", handleLastValues);
-
-  // Simple Firmware Update Form
-  server.on("/upload", HTTP_GET, handleUpdateGet);
-  server.on("/upload", HTTP_POST, handleUpdatePost, handleUpdateUpload);
-
-  server.on("/firmware", handleUpdateCheck);
-  server.on("/update", handleUpdate);
-  server.on("/emoncms/describe", handleDescribe);
-  server.on("/time", handleTime);
-  server.on("/ctrlmode", handleCtrlMode);
-  server.on("/vout", handleSetVout);
-  server.on("/flow", handleSetFlowT);
-
-
-
-  server.onNotFound(handleNotFound);
-  server.begin();
-}
-*/
 void
 web_server_loop() {
   // Do we need to restart the WiFi?
